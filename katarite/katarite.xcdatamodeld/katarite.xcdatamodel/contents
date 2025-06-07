@@ -1,9 +1,88 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="1" systemVersion="11A491" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="false" userDefinedModelVersionIdentifier="">
-    <entity name="Item" representedClassName="Item" syncable="YES" codeGenerationType="class">
-        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    
+    <!-- Story Entity - Core story data -->
+    <entity name="StoryEntity" representedClassName="StoryEntity" syncable="YES" codeGenerationType="none">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String"/>
+        <attribute name="content" attributeType="String"/>
+        <attribute name="ageGroup" attributeType="String"/>
+        <attribute name="language" attributeType="String"/>
+        <attribute name="characters" attributeType="String"/>
+        <attribute name="setting" attributeType="String"/>
+        <attribute name="moralMessage" attributeType="String"/>
+        <attribute name="storyLength" attributeType="String"/>
+        <attribute name="aiModel" attributeType="String"/>
+        <attribute name="isFavorite" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="createdDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="wordCount" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="readingTimeMinutes" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="imageData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="generationParameters" optional="YES" attributeType="String"/>
+        <relationship name="userProfile" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="UserProfileEntity" inverseName="stories" inverseEntity="UserProfileEntity"/>
+        <relationship name="analytics" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="StoryAnalyticsEntity" inverseName="story" inverseEntity="StoryAnalyticsEntity"/>
     </entity>
+    
+    <!-- User Profile Entity - Local user data -->
+    <entity name="UserProfileEntity" representedClassName="UserProfileEntity" syncable="YES" codeGenerationType="none">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="appleUserID" attributeType="String"/>
+        <attribute name="childName" optional="YES" attributeType="String"/>
+        <attribute name="preferredLanguage" attributeType="String" defaultValueString="english"/>
+        <attribute name="defaultAgeGroup" attributeType="String" defaultValueString="preschooler"/>
+        <attribute name="createdDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedDate" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="stories" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="StoryEntity" inverseName="userProfile" inverseEntity="StoryEntity"/>
+
+        <relationship name="usageLimits" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="UsageLimitsEntity" inverseName="userProfile" inverseEntity="UsageLimitsEntity"/>
+    </entity>
+    
+
+    
+    <!-- Usage Limits Entity - Local usage tracking -->
+    <entity name="UsageLimitsEntity" representedClassName="UsageLimitsEntity" syncable="YES" codeGenerationType="none">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="dailyStoriesUsed" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="dailyStoriesLimit" attributeType="Integer 32" defaultValueString="10" usesScalarValueType="YES"/>
+        <attribute name="dailyLimitResetDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="totalStoriesGenerated" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lastResetDate" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="userProfile" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="UserProfileEntity" inverseName="usageLimits" inverseEntity="UserProfileEntity"/>
+    </entity>
+    
+    <!-- Story Analytics Entity - Local analytics -->
+    <entity name="StoryAnalyticsEntity" representedClassName="StoryAnalyticsEntity" syncable="YES" codeGenerationType="none">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="generationTimeMs" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="modelUsed" attributeType="String"/>
+        <attribute name="success" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="errorMessage" optional="YES" attributeType="String"/>
+        <attribute name="retryAttempts" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="parametersUsed" optional="YES" attributeType="String"/>
+        <relationship name="story" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StoryEntity" inverseName="analytics" inverseEntity="StoryEntity"/>
+    </entity>
+    
+    <!-- App Settings Entity - Global app preferences -->
+    <entity name="AppSettingsEntity" representedClassName="AppSettingsEntity" syncable="YES" codeGenerationType="none">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isDarkModeEnabled" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="defaultTextSize" attributeType="String" defaultValueString="medium"/>
+        <attribute name="enableHapticFeedback" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="enableNotifications" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="lastBackupDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="appVersion" attributeType="String"/>
+        <attribute name="createdDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedDate" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    
     <elements>
-        <element name="Item" positionX="-63" positionY="-18" width="128" height="44"/>
+        <element name="StoryEntity" positionX="-63" positionY="-18" width="128" height="329"/>
+        <element name="UserProfileEntity" positionX="144" positionY="-18" width="128" height="194"/>
+
+        <element name="UsageLimitsEntity" positionX="351" positionY="189" width="128" height="134"/>
+        <element name="StoryAnalyticsEntity" positionX="-63" positionY="351" width="128" height="164"/>
+        <element name="AppSettingsEntity" positionX="144" positionY="351" width="128" height="164"/>
     </elements>
 </model>
