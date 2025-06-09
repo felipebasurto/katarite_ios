@@ -14,4 +14,9 @@ class TabSwitcher: ObservableObject {
     func switchToMyStories() {
         selectedTab = 1
     }
+    
+    /// Switch to the Profile tab
+    func switchToProfile() {
+        selectedTab = 2
+    }
 } 

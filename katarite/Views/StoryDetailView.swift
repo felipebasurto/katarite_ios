@@ -162,135 +162,64 @@ struct StoryDetailView: View {
     
     // MARK: - Story Content View
     private var storyContentView: some View {
-        ScrollViewReader { proxy in
+        GeometryReader { geometry in
             ScrollView {
-                if isLoading {
-                    // Loading state
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                            .progressViewStyle(CircularProgressViewStyle(tint: .accentColor))
-                        
-                        Text("Loading story...")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 0) {
+                    // Story content with structured layout
+                    if let structuredContent = CoreDataManager.shared.getStructuredContent(from: story) {
+                        StructuredStoryContentView(
+                            structuredContent: structuredContent.structuredContent,
+                            fontSize: fontSize
+                        )
+                    } else {
+                        // Fallback to legacy content display
+                        LegacyStoryContentView(
+                            content: story.content ?? "",
+                            fontSize: fontSize
+                        )
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.top, 100)
-                } else {
-                    VStack(alignment: .leading, spacing: 24) {
-                        // Story metadata
-                        storyMetadataView
-                            .opacity(hasAppeared ? 1 : 0)
-                            .animation(.easeInOut(duration: 0.5).delay(0.1), value: hasAppeared)
-                        
-                        // Story title with beautiful styling
-                        ZStack {
-                            // Background gradient for title
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.purple.opacity(0.8),
-                                            Color.pink.opacity(0.6),
-                                            Color.blue.opacity(0.4)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                            
-                            VStack(spacing: 8) {
-                                Text(story.title ?? "Untitled Story")
-                                    .font(.system(size: 28, weight: .heavy, design: .rounded))
-                                    .foregroundStyle(
-                                        LinearGradient(
-                                            colors: [.white, .white.opacity(0.9)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .multilineTextAlignment(.center)
-                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 1, y: 1)
-                                
-                                // Decorative elements
-                                HStack(spacing: 8) {
-                                    Image(systemName: "sparkles")
-                                        .font(.caption)
-                                        .foregroundColor(.white.opacity(0.8))
-                                    
-                                    Rectangle()
-                                        .frame(width: 40, height: 2)
-                                        .foregroundColor(.white.opacity(0.6))
-                                    
-                                    Image(systemName: "book.closed")
-                                        .font(.caption)
-                                        .foregroundColor(.white.opacity(0.8))
-                                    
-                                    Rectangle()
-                                        .frame(width: 40, height: 2)
-                                        .foregroundColor(.white.opacity(0.6))
-                                    
-                                    Image(systemName: "sparkles")
-                                        .font(.caption)
-                                        .foregroundColor(.white.opacity(0.8))
+                }
+                .opacity(hasAppeared ? 1 : 0)
+                .animation(.easeInOut(duration: 0.5).delay(0.3), value: hasAppeared)
+                .background(
+                    GeometryReader { contentGeometry in
+                        Color.clear
+                            .onAppear {
+                                // Debounce content height updates
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    totalContentHeight = contentGeometry.size.height
                                 }
                             }
-                            .padding(.vertical, 24)
-                            .padding(.horizontal, 20)
-                        }
-                        .id("story-title")
-                        .opacity(hasAppeared ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.5).delay(0.2), value: hasAppeared)
-                        
-                        // Story content
-                        Text(story.content ?? "")
-                            .font(.system(size: fontSize, weight: .regular, design: .serif))
-                            .lineSpacing(fontSize * 0.3)
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.leading)
-                            .padding(.bottom, 40)
-                            .opacity(hasAppeared ? 1 : 0)
-                            .animation(.easeInOut(duration: 0.5).delay(0.3), value: hasAppeared)
-                            .background(
-                                GeometryReader { contentGeometry in
-                                    Color.clear
-                                        .onAppear {
-                                            // Debounce content height updates
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                                totalContentHeight = contentGeometry.size.height
-                                            }
-                                        }
-                                        .onChange(of: fontSize) { oldValue, newValue in
-                                            // Update height when font size changes
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                                totalContentHeight = contentGeometry.size.height
-                                            }
-                                        }
+                            .onChange(of: fontSize) { oldValue, newValue in
+                                // Update height when font size changes
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    totalContentHeight = contentGeometry.size.height
                                 }
-                            )
+                            }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .background(
-                        GeometryReader { scrollGeometry in
-                            Color.clear
-                                .preference(
-                                    key: ScrollOffsetPreferenceKey.self,
-                                    value: scrollGeometry.frame(in: .named("scroll")).minY
-                                )
-                        }
-                    )
-                }
+                )
             }
-            .coordinateSpace(name: "scroll")
+            .background(Color.clear)
             .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                // Throttle scroll updates for better performance
-                if !isLoading {
-                    updateReadingProgress(scrollOffset: value)
+                scrollOffset = value
+                
+                // Calculate reading progress
+                let maxOffset = max(0, totalContentHeight - geometry.size.height)
+                if maxOffset > 0 {
+                    readingProgress = min(1.0, max(0, -value / maxOffset))
                 }
             }
+            .overlay(
+                // Invisible scroll tracking view
+                GeometryReader { proxy in
+                    Color.clear
+                        .preference(
+                            key: ScrollOffsetPreferenceKey.self,
+                            value: proxy.frame(in: .named("scroll")).minY
+                        )
+                }
+            )
+            .coordinateSpace(name: "scroll")
         }
     }
     
@@ -356,18 +285,6 @@ struct StoryDetailView: View {
             print("Error toggling favorite: \(error)")
         }
     }
-    
-    private func updateReadingProgress(scrollOffset: CGFloat) {
-        guard totalContentHeight > 0 else { return }
-        
-        let visibleHeight = UIScreen.main.bounds.height - 200 // Account for header and safe areas
-        let maxScrollOffset = totalContentHeight - visibleHeight
-        
-        if maxScrollOffset > 0 {
-            let progress = min(max(0, -scrollOffset / maxScrollOffset), 1)
-            readingProgress = progress
-        }
-    }
 }
 
 // MARK: - Tag View Component
@@ -386,8 +303,6 @@ private struct TagView: View {
             .clipShape(Capsule())
     }
 }
-
-
 
 // MARK: - Scroll Offset Preference Key
 struct ScrollOffsetPreferenceKey: PreferenceKey {

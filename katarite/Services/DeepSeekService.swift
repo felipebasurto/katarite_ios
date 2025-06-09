@@ -64,6 +64,10 @@ class DeepSeekService: ObservableObject {
     // MARK: - Private Methods
     
     private func createSystemPrompt(from request: StoryGenerationRequest) -> String {
+        // Use LanguageManager for language detection
+        let languageManager = LanguageManager.shared
+        let currentLanguage = languageManager.currentLanguage
+        
         // Define specific word counts for better consistency
         let lengthWords: String
         switch request.storyLength.lowercased() {
@@ -90,51 +94,119 @@ class DeepSeekService: ObservableObject {
             ageInstructions = "Use clear language suitable for young children"
         }
         
-        let languageInstruction = request.language == .english 
+        let languageInstruction = currentLanguage == .english 
             ? "CRITICAL REQUIREMENT: Write the ENTIRE story in ENGLISH ONLY. Do not use any other language." 
             : "REQUISITO CRÍTICO: Escribe TODA la historia en ESPAÑOL SOLAMENTE. No uses ningún otro idioma. Esto es absolutamente obligatorio."
 
         let mainCharacterDescription = request.characters.first ?? "a child"
 
-        return """
-        \(languageInstruction)
+        // Create language-specific prompt
+        let prompt = createLanguageSpecificPrompt(
+            languageInstruction: languageInstruction,
+            characters: request.characters,
+            mainCharacterDescription: mainCharacterDescription,
+            setting: request.setting,
+            moralMessage: request.moralMessage,
+            ageInstructions: ageInstructions,
+            lengthWords: lengthWords,
+            language: currentLanguage
+        )
+        
+        return prompt
+    }
+    
+    private func createLanguageSpecificPrompt(
+        languageInstruction: String,
+        characters: [String],
+        mainCharacterDescription: String,
+        setting: String,
+        moralMessage: String,
+        ageInstructions: String,
+        lengthWords: String,
+        language: LanguageManager.AppLanguage
+    ) -> String {
+        
+        if language == .spanish {
+            return """
+            \(languageInstruction)
 
-        You are an exceptional children's bedtime story writer known for your creativity and originality. Create a captivating, age-appropriate story that stands out from typical children's tales.
+            Eres un escritor excepcional de cuentos infantiles para la hora de dormir, conocido por tu creatividad y originalidad. Crea una historia cautivadora y apropiada para la edad que se destaque de los cuentos infantiles típicos.
 
-        STORY REQUIREMENTS:
-          - Main character(s): \(request.characters.joined(separator: ", ")) - The first character on the list, '\(mainCharacterDescription)', MUST be central to the story with distinct personality traits, desires, and challenges. Develop this character fully.
-          - Setting: \(request.setting) - Create a vivid, immersive setting with sensory details (sights, sounds, smells). The setting should feel unique and influence the story's events.
-          - Theme/Message: \(request.moralMessage) - Weave this theme or message throughout the story in unexpected ways.
-          - Age group: \(ageInstructions) - Use vocabulary and concepts appropriate for this age.
-          - Length: \(lengthWords) - Ensure the story has proper pacing and development for this exact word count.
-          - Language: \(languageInstruction)
-          
-        CREATIVE ELEMENTS (REQUIRED):
-          - Include at least one surprising plot twist that changes the direction of the story
-          - Create a unique challenge or obstacle that requires creative problem-solving
-          - Include vivid imagery and metaphors that children can understand
-          - Develop secondary characters with distinct personalities (if applicable)
-          - Incorporate an unexpected element or magical aspect that delights and surprises
-          - Avoid clichéd storylines and predictable endings
-          
-        STRUCTURAL REQUIREMENTS:
-          - Well-defined beginning (setup), middle (conflict/challenge), and end (resolution)
-          - Clear character growth or lesson learned
-          - Engaging dialogue that reveals character personalities
-          - A satisfying conclusion that ties together the story elements
-          
-        FORMAT REQUIREMENTS (VERY IMPORTANT):
-          1. Start with the title on its own line, surrounded by ** (e.g., **The Magic Forest**)
-          2. Add a blank line after the title
-          3. Format the story with proper paragraphs, with each paragraph separated by a blank line
-          4. Use proper spacing and indentation for readability
-          5. For dialog, use quotation marks and proper attribution (e.g., "Hello," said Sam.)
-          6. End the story with "The End." on its own line
-          
-        The story should be imaginative, original, and suitable for bedtime reading. Make it visually appealing when displayed on a webpage.
-          
-        Do not include any disclaimers, notes, or explanations before or after the story. Just provide the story itself, starting with the title and ending with "The End."
-        """
+            REQUISITOS DE LA HISTORIA:
+              - Personaje(s) principal(es): \(characters.joined(separator: ", ")) - El primer personaje de la lista, '\(mainCharacterDescription)', DEBE ser central en la historia con rasgos de personalidad distintivos, deseos y desafíos. Desarrolla completamente este personaje.
+              - Escenario: \(setting) - Crea un escenario vívido e inmersivo con detalles sensoriales (vistas, sonidos, olores). El escenario debe sentirse único e influir en los eventos de la historia.
+              - Tema/Mensaje: \(moralMessage) - Entreteje este tema o mensaje a lo largo de la historia de maneras inesperadas.
+              - Grupo de edad: \(ageInstructions) - Usa vocabulario y conceptos apropiados para esta edad.
+              - Longitud: \(lengthWords) - Asegúrate de que la historia tenga el ritmo y desarrollo adecuados para este conteo exacto de palabras.
+              - Idioma: \(languageInstruction)
+              
+            ELEMENTOS CREATIVOS (REQUERIDOS):
+              - Incluye al menos un giro argumental sorprendente que cambie la dirección de la historia
+              - Crea un desafío u obstáculo único que requiera resolución creativa de problemas
+              - Incluye imágenes vívidas y metáforas que los niños puedan entender
+              - Desarrolla personajes secundarios con personalidades distintivas (si aplica)
+              - Incorpora un elemento inesperado o aspecto mágico que deleite y sorprenda
+              - Evita argumentos clichés y finales predecibles
+              
+            REQUISITOS ESTRUCTURALES:
+              - Inicio bien definido (preparación), medio (conflicto/desafío) y final (resolución)
+              - Crecimiento claro del personaje o lección aprendida
+              - Diálogo atractivo que revele las personalidades de los personajes
+              - Una conclusión satisfactoria que una todos los elementos de la historia
+              
+            REQUISITOS DE FORMATO (MUY IMPORTANTE):
+              1. Comienza con el título en su propia línea, rodeado por ** (ej., **El Bosque Mágico**)
+              2. Agrega una línea en blanco después del título
+              3. Formatea la historia con párrafos apropiados, con cada párrafo separado por una línea en blanco
+              4. Usa espaciado e indentación apropiados para legibilidad
+              5. Para diálogos, usa comillas y atribución apropiada (ej., "Hola," dijo Sam.)
+              6. Termina la historia con "Fin." en su propia línea
+              
+            La historia debe ser imaginativa, original y adecuada para la lectura antes de dormir. Hazla visualmente atractiva cuando se muestre en una página web.
+              
+            No incluyas ninguna advertencia, nota o explicación antes o después de la historia. Solo proporciona la historia en sí, comenzando con el título y terminando con "Fin."
+            """
+        } else {
+            return """
+            \(languageInstruction)
+
+            You are an exceptional children's bedtime story writer known for your creativity and originality. Create a captivating, age-appropriate story that stands out from typical children's tales.
+
+            STORY REQUIREMENTS:
+              - Main character(s): \(characters.joined(separator: ", ")) - The first character on the list, '\(mainCharacterDescription)', MUST be central to the story with distinct personality traits, desires, and challenges. Develop this character fully.
+              - Setting: \(setting) - Create a vivid, immersive setting with sensory details (sights, sounds, smells). The setting should feel unique and influence the story's events.
+              - Theme/Message: \(moralMessage) - Weave this theme or message throughout the story in unexpected ways.
+              - Age group: \(ageInstructions) - Use vocabulary and concepts appropriate for this age.
+              - Length: \(lengthWords) - Ensure the story has proper pacing and development for this exact word count.
+              - Language: \(languageInstruction)
+              
+            CREATIVE ELEMENTS (REQUIRED):
+              - Include at least one surprising plot twist that changes the direction of the story
+              - Create a unique challenge or obstacle that requires creative problem-solving
+              - Include vivid imagery and metaphors that children can understand
+              - Develop secondary characters with distinct personalities (if applicable)
+              - Incorporate an unexpected element or magical aspect that delights and surprises
+              - Avoid clichéd storylines and predictable endings
+              
+            STRUCTURAL REQUIREMENTS:
+              - Well-defined beginning (setup), middle (conflict/challenge), and end (resolution)
+              - Clear character growth or lesson learned
+              - Engaging dialogue that reveals character personalities
+              - A satisfying conclusion that ties together the story elements
+              
+            FORMAT REQUIREMENTS (VERY IMPORTANT):
+              1. Start with the title on its own line, surrounded by ** (e.g., **The Magic Forest**)
+              2. Add a blank line after the title
+              3. Format the story with proper paragraphs, with each paragraph separated by a blank line
+              4. Use proper spacing and indentation for readability
+              5. For dialog, use quotation marks and proper attribution (e.g., "Hello," said Sam.)
+              6. End the story with "The End." on its own line
+              
+            The story should be imaginative, original, and suitable for bedtime reading. Make it visually appealing when displayed on a webpage.
+              
+            Do not include any disclaimers, notes, or explanations before or after the story. Just provide the story itself, starting with the title and ending with "The End."
+            """
+        }
     }
     
     private func performStreamingRequest(_ request: StoryGenerationRequest, completion: @escaping (Result<String, DeepSeekError>) -> Void) {

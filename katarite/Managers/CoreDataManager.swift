@@ -32,6 +32,90 @@ class CoreDataManager: ObservableObject {
     
     // MARK: - Story Management
     
+    /// Create a story from a StoryResult with structured content
+    func createStoryFromResult(
+        title: String,
+        storyResult: StoryResult,
+        ageGroup: String,
+        language: String,
+        characters: String,
+        setting: String,
+        moralMessage: String,
+        storyLength: String,
+        aiModel: String,
+        generationParameters: String? = nil,
+        userProfile: UserProfileEntity
+    ) -> StoryEntity {
+        return createStory(
+            title: title,
+            content: storyResult.text, // Backward compatibility
+            ageGroup: ageGroup,
+            language: language,
+            characters: characters,
+            setting: setting,
+            moralMessage: moralMessage,
+            storyLength: storyLength,
+            aiModel: aiModel,
+            imageData: storyResult.structuredContent.firstImageData, // First image for compatibility
+            structuredContent: storyResult.toJSON(), // Full structured content
+            generationParameters: generationParameters,
+            userProfile: userProfile
+        )
+    }
+    
+    /// Get structured content from a story entity
+    func getStructuredContent(from story: StoryEntity) -> StoryResult? {
+        guard let structuredContentJSON = story.structuredContent else {
+            // Fallback: create structured content from legacy data
+            return createLegacyStructuredContent(from: story)
+        }
+        
+        return StoryResult.fromJSON(structuredContentJSON)
+    }
+    
+    /// Create structured content for legacy stories that don't have it
+    private func createLegacyStructuredContent(from story: StoryEntity) -> StoryResult? {
+        guard let content = story.content else { return nil }
+        
+        var images: [StoryImage] = []
+        var parts: [StoryPart] = []
+        
+        // If there's image data, create a single image
+        if let imageData = story.imageData {
+            let image = StoryImage(
+                data: imageData,
+                altText: "Story illustration",
+                index: 0
+            )
+            images.append(image)
+        }
+        
+        // Split content into paragraphs and apply fallback positioning if we have images
+        let paragraphs = content.components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        
+        if images.isEmpty {
+            // No images, just text
+            parts.append(.text(content))
+        } else {
+            // Apply the same fallback positioning logic for legacy stories
+            let midPoint = paragraphs.count / 2
+            
+            for (index, paragraph) in paragraphs.enumerated() {
+                parts.append(.text(paragraph))
+                
+                // Add image at midpoint for legacy single-image stories
+                if index == midPoint && !images.isEmpty {
+                    parts.append(.image(imageIndex: 0, altText: images[0].altText))
+                }
+            }
+        }
+        
+        let structuredContent = StructuredStoryContent(parts: parts, images: images)
+        return StoryResult(structuredContent: structuredContent)
+    }
+    
     func createStory(
         title: String,
         content: String,
@@ -43,6 +127,7 @@ class CoreDataManager: ObservableObject {
         storyLength: String,
         aiModel: String,
         imageData: Data? = nil,
+        structuredContent: String? = nil,
         generationParameters: String? = nil,
         userProfile: UserProfileEntity
     ) -> StoryEntity {
@@ -50,6 +135,7 @@ class CoreDataManager: ObservableObject {
         story.id = UUID()
         story.title = title
         story.content = content
+        story.structuredContent = structuredContent
         story.ageGroup = ageGroup
         story.language = language
         story.characters = characters

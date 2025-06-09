@@ -35,6 +35,15 @@ struct MainView: View {
                         Text("My Stories")
                     }
                     .tag(1)
+                    
+                    // Profile Tab
+                    ProfileTabView()
+                        .environmentObject(tabSwitcher)
+                        .tabItem {
+                            Image(systemName: "person.circle")
+                            Text("Profile")
+                        }
+                        .tag(2)
                 }
                 .accentColor(.purple)
                 .onAppear {

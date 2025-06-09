@@ -1,15 +1,15 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedLanguage: String = "English"
-    @State private var selectedAgeGroup: String = "Preschooler"
-    @State private var selectedLength: String = "Medium"
-    @State private var selectedModel: String = "text"
+    @StateObject private var languageManager = LanguageManager.shared
+    @State private var includeImages: Bool = false
+    @State private var selectedAgeGroup: AgeGroup = .preschooler
+    @State private var selectedLength: StoryLength = .medium
     @State private var characters: String = ""
     @State private var setting: String = ""
     @State private var moralMessage: String = ""
-    @State private var isGenerating: Bool = false
     @State private var showStoryGeneration = false
+    @State private var isGenerating = false
     
     // Random suggestions in both languages
     private let randomCharacters = [
@@ -99,130 +99,119 @@ struct ContentView: View {
                 VStack(spacing: 24) {
                     // Header
                     VStack(spacing: 8) {
-                        Text("Create Your Story")
+                        Text(languageManager.isSpanish ? "Crear Nueva Historia" : "Create New Story")
                             .font(.largeTitle)
                             .fontWeight(.bold)
-                            .foregroundColor(.primary)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.purple, .pink],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                         
-                        Text("Let's create a magical story together!")
+                        Text(languageManager.isSpanish ? 
+                            "Personaliza tu aventura única" : 
+                            "Personalize your unique adventure")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
                     .padding(.top)
                     
-                    // Language Selection
-                    FormSection(title: "Language", icon: "globe") {
-                        HStack(spacing: 12) {
-                            SelectionCard(
-                                title: "English",
-                                subtitle: "🇺🇸",
-                                isSelected: selectedLanguage == "English"
-                            ) {
-                                selectedLanguage = "English"
-                            }
-                            
-                            SelectionCard(
-                                title: "Español",
-                                subtitle: "🇪🇸",
-                                isSelected: selectedLanguage == "Español"
-                            ) {
-                                selectedLanguage = "Español"
-                            }
-                        }
-                    }
-                    
                     // Age Group Selection
-                    FormSection(title: "Age Group", icon: "person.2") {
+                    FormSection(title: languageManager.isSpanish ? "Grupo de Edad" : "Age Group", icon: "person.2") {
                         VStack(spacing: 12) {
                             SelectionCard(
-                                title: "Toddler",
-                                subtitle: "Ages 2-4 • Simple words and concepts",
-                                isSelected: selectedAgeGroup == "Toddler"
+                                title: languageManager.isSpanish ? "Pequeños" : "Toddler",
+                                subtitle: languageManager.isSpanish ? "Edades 2-3 • Palabras y conceptos simples" : "Ages 2-3 • Simple words and concepts",
+                                isSelected: selectedAgeGroup == .toddler
                             ) {
-                                selectedAgeGroup = "Toddler"
+                                selectedAgeGroup = .toddler
                             }
                             
                             SelectionCard(
-                                title: "Preschooler",
-                                subtitle: "Ages 4-6 • Engaging adventures",
-                                isSelected: selectedAgeGroup == "Preschooler"
+                                title: languageManager.isSpanish ? "Preescolar" : "Preschooler",
+                                subtitle: languageManager.isSpanish ? "Edades 4-5 • Aventuras emocionantes" : "Ages 4-5 • Engaging adventures",
+                                isSelected: selectedAgeGroup == .preschooler
                             ) {
-                                selectedAgeGroup = "Preschooler"
+                                selectedAgeGroup = .preschooler
                             }
                             
                             SelectionCard(
-                                title: "Elementary",
-                                subtitle: "Ages 6-10 • Complex stories with lessons",
-                                isSelected: selectedAgeGroup == "Elementary"
+                                title: languageManager.isSpanish ? "Primaria" : "Elementary",
+                                subtitle: languageManager.isSpanish ? "Edades 6-8 • Historias complejas con lecciones" : "Ages 6-8 • Complex stories with lessons",
+                                isSelected: selectedAgeGroup == .elementary
                             ) {
-                                selectedAgeGroup = "Elementary"
+                                selectedAgeGroup = .elementary
                             }
                         }
                     }
                     
                     // Story Length
-                    FormSection(title: "Story Length", icon: "book") {
+                    FormSection(title: languageManager.isSpanish ? "Longitud de Historia" : "Story Length", icon: "book") {
                         HStack(spacing: 12) {
                             SelectionCard(
-                                title: "Short",
-                                subtitle: "~100 words • 2-3 minutes",
-                                isSelected: selectedLength == "Short"
+                                title: languageManager.isSpanish ? "Corta" : "Short",
+                                subtitle: languageManager.isSpanish ? "~2-3 minutos" : "~2-3 minutes",
+                                isSelected: selectedLength == .short
                             ) {
-                                selectedLength = "Short"
+                                selectedLength = .short
                             }
                             
                             SelectionCard(
-                                title: "Medium",
-                                subtitle: "~200 words • 4-5 minutes",
-                                isSelected: selectedLength == "Medium"
+                                title: languageManager.isSpanish ? "Mediana" : "Medium",
+                                subtitle: languageManager.isSpanish ? "~5-7 minutos" : "~5-7 minutes",
+                                isSelected: selectedLength == .medium
                             ) {
-                                selectedLength = "Medium"
+                                selectedLength = .medium
                             }
                             
                             SelectionCard(
-                                title: "Long",
-                                subtitle: "~300 words • 6-8 minutes",
-                                isSelected: selectedLength == "Long"
+                                title: languageManager.isSpanish ? "Larga" : "Long",
+                                subtitle: languageManager.isSpanish ? "~10-12 minutos" : "~10-12 minutes",
+                                isSelected: selectedLength == .long
                             ) {
-                                selectedLength = "Long"
+                                selectedLength = .long
                             }
                         }
                     }
                     
-                    // Story Type Selection
-                    FormSection(title: "Story Type", icon: "sparkles") {
-                        HStack(spacing: 12) {
-                            SelectionCard(
-                                title: "Text",
-                                subtitle: "Story with words only",
-                                isSelected: selectedModel == "text"
-                            ) {
-                                selectedModel = "text"
+                    // Include Images Toggle
+                    FormSection(title: languageManager.isSpanish ? "Incluir Imágenes" : "Include Images", icon: "photo") {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(languageManager.isSpanish ? "Agregar ilustraciones" : "Add illustrations")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                
+                                Text(languageManager.isSpanish ? 
+                                    "Las imágenes hacen la historia más visual y atractiva" : 
+                                    "Images make the story more visual and engaging")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
                             
-                            SelectionCard(
-                                title: "Text + Illustrations",
-                                subtitle: "Story with beautiful pictures",
-                                isSelected: selectedModel == "illustrations"
-                            ) {
-                                selectedModel = "illustrations"
-                            }
+                            Spacer()
+                            
+                            Toggle("", isOn: $includeImages)
+                                .toggleStyle(SwitchToggleStyle(tint: .purple))
                         }
+                        .padding(.vertical, 8)
                     }
                     
                     // Story Details
                     VStack(spacing: 16) {
                         // Characters Input
                         VStack(alignment: .leading, spacing: 8) {
-                            Label("Characters", systemImage: "person.3")
+                            Label(languageManager.isSpanish ? "Personajes" : "Characters", systemImage: "person.3")
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             
                             HStack {
                                 CustomTextField(
-                                    placeholder: selectedLanguage == "English" ? 
-                                        "e.g., A brave little mouse named Max" : 
-                                        "ej., Un ratoncito valiente llamado Max",
+                                    placeholder: languageManager.isSpanish ? 
+                                        "ej., Un ratoncito valiente llamado Max" : 
+                                        "e.g., A brave little mouse named Max",
                                     text: $characters
                                 )
                                 
@@ -247,15 +236,15 @@ struct ContentView: View {
                         
                         // Setting Input
                         VStack(alignment: .leading, spacing: 8) {
-                            Label("Setting", systemImage: "location")
+                            Label(languageManager.isSpanish ? "Escenario" : "Setting", systemImage: "location")
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             
                             HStack {
                                 CustomTextField(
-                                    placeholder: selectedLanguage == "English" ? 
-                                        "e.g., A magical forest with talking trees" : 
-                                        "ej., Un bosque mágico con árboles parlantes",
+                                    placeholder: languageManager.isSpanish ? 
+                                        "ej., Un bosque mágico con árboles parlantes" : 
+                                        "e.g., A magical forest with talking trees",
                                     text: $setting
                                 )
                                 
@@ -280,15 +269,15 @@ struct ContentView: View {
                         
                         // Moral Message Input
                         VStack(alignment: .leading, spacing: 8) {
-                            Label("Moral Message", systemImage: "heart")
+                            Label(languageManager.isSpanish ? "Mensaje Moral" : "Moral Message", systemImage: "heart")
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             
                             HStack {
                                 CustomTextField(
-                                    placeholder: selectedLanguage == "English" ? 
-                                        "e.g., Friendship is the greatest treasure" : 
-                                        "ej., La amistad es el tesoro más grande",
+                                    placeholder: languageManager.isSpanish ? 
+                                        "ej., La amistad es el tesoro más grande" : 
+                                        "e.g., Friendship is the greatest treasure",
                                     text: $moralMessage
                                 )
                                 
@@ -329,7 +318,9 @@ struct ContentView: View {
                                 Image(systemName: "wand.and.stars")
                             }
                             
-                            Text(isGenerating ? "Creating your story..." : "Generate Story")
+                            Text(isGenerating ? 
+                                (languageManager.isSpanish ? "Creando tu historia..." : "Creating your story...") : 
+                                (languageManager.isSpanish ? "Generar Historia" : "Generate Story"))
                                 .font(.headline)
                         }
                         .foregroundColor(.white)
@@ -367,14 +358,14 @@ struct ContentView: View {
         .fullScreenCover(isPresented: $showStoryGeneration) {
             StoryGenerationView(
                 request: StoryGenerationRequest(
-                    ageGroup: selectedAgeGroup,
-                    storyLength: selectedLength,
+                    ageGroup: selectedAgeGroup.rawValue,
+                    storyLength: selectedLength.rawValue,
                     characters: [characters],
                     setting: setting,
                     moralMessage: moralMessage,
-                    language: selectedLanguage == "English" ? .english : .spanish,
+                    language: languageManager.currentLanguage.toStoryLanguage,
                     maxTokens: 1500,
-                    selectedModel: selectedModel
+                    selectedModel: includeImages ? "illustrations" : "text"
                 )
             )
         }
@@ -386,29 +377,31 @@ struct ContentView: View {
         !moralMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
+    private func generateStory() {
+        isGenerating = true
+        showStoryGeneration = true
+    }
+    
+    // Random generation methods
     private func randomizeCharacters() {
-        let languageKey = selectedLanguage == "English" ? "english" : "spanish"
+        let languageKey = languageManager.isSpanish ? "spanish" : "english"
         if let options = randomCharacters[languageKey] {
             characters = options.randomElement() ?? ""
         }
     }
     
     private func randomizeSetting() {
-        let languageKey = selectedLanguage == "English" ? "english" : "spanish"
+        let languageKey = languageManager.isSpanish ? "spanish" : "english"
         if let options = randomSettings[languageKey] {
             setting = options.randomElement() ?? ""
         }
     }
     
     private func randomizeMoral() {
-        let languageKey = selectedLanguage == "English" ? "english" : "spanish"
+        let languageKey = languageManager.isSpanish ? "spanish" : "english"
         if let options = randomMorals[languageKey] {
             moralMessage = options.randomElement() ?? ""
         }
-    }
-    
-    private func generateStory() {
-        showStoryGeneration = true
     }
 }
 

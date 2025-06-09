@@ -289,6 +289,7 @@ extension StoryEntity {
     @NSManaged public var id: UUID?
     @NSManaged public var title: String?
     @NSManaged public var content: String?
+    @NSManaged public var structuredContent: String?
     @NSManaged public var ageGroup: String?
     @NSManaged public var language: String?
     @NSManaged public var characters: String?

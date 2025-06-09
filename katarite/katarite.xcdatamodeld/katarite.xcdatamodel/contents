@@ -6,6 +6,7 @@
         <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String"/>
         <attribute name="content" attributeType="String"/>
+        <attribute name="structuredContent" optional="YES" attributeType="String"/>
         <attribute name="ageGroup" attributeType="String"/>
         <attribute name="language" attributeType="String"/>
         <attribute name="characters" attributeType="String"/>

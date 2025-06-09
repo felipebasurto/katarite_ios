@@ -60,18 +60,13 @@ class AuthenticationManager: NSObject, ObservableObject {
     
     // MARK: - Real Apple Sign-In (Production)
     private func signInWithRealApple() async {
-        do {
-            let request = ASAuthorizationAppleIDProvider().createRequest()
-            request.requestedScopes = [.fullName, .email]
-            
-            let authorizationController = ASAuthorizationController(authorizationRequests: [request])
-            authorizationController.delegate = self
-            authorizationController.presentationContextProvider = self
-            authorizationController.performRequests()
-        } catch {
-            errorMessage = "Failed to sign in with Apple: \(error.localizedDescription)"
-            isLoading = false
-        }
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        
+        let authorizationController = ASAuthorizationController(authorizationRequests: [request])
+        authorizationController.delegate = self
+        authorizationController.presentationContextProvider = self
+        authorizationController.performRequests()
     }
     
     // MARK: - Sign Out
@@ -87,7 +82,7 @@ class AuthenticationManager: NSObject, ObservableObject {
     
     // MARK: - Profile Management
     func updateProfile(childName: String?, preferredLanguage: Language, defaultAgeGroup: AgeGroup) async {
-        guard var user = currentUser else { return }
+        guard let user = currentUser else { return }
         
         let updatedUser = UserPreferences(
             id: user.id,
@@ -103,7 +98,7 @@ class AuthenticationManager: NSObject, ObservableObject {
     }
     
     func updateAPIKeys(_ apiKeys: APIKeys) async {
-        guard var user = currentUser else { return }
+        guard let user = currentUser else { return }
         
         let updatedUser = UserPreferences(
             id: user.id,

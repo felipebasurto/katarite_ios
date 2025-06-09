@@ -16,6 +16,7 @@ struct StoryGenerationView: View {
     @State private var animationTimer: Timer?
     @State private var showShareSheet = false
     @State private var generatedStory = ""
+    @State private var structuredStoryResult: StoryResult?
     
     // Save state management
     @State private var isSaving = false
@@ -32,11 +33,11 @@ struct StoryGenerationView: View {
         }
     }
     
-    private var currentError: LocalizedError? {
+    private var currentError: String? {
         if request.selectedModel == "illustrations" {
             return geminiService.error
         } else {
-            return deepSeekService.error
+            return deepSeekService.error?.localizedDescription
         }
     }
     
@@ -142,7 +143,7 @@ struct StoryGenerationView: View {
                                 }
                             }
                             
-                            // Story text display
+                            // Story content display
                             VStack(alignment: .leading, spacing: 12) {
                                 if displayedText.isEmpty && isGenerating {
                                     // Initial loading state
@@ -155,37 +156,55 @@ struct StoryGenerationView: View {
                                             TypingIndicator()
                                         }
                                     }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(20)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .fill(.ultraThinMaterial)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                    )
+                                } else if let structuredResult = structuredStoryResult, request.selectedModel == "illustrations" {
+                                    // Display structured content with integrated images
+                                    StructuredStoryContentView(
+                                        structuredContent: structuredResult.structuredContent,
+                                        fontSize: 16
+                                    )
                                 } else {
-                                    // Story text with typing animation
-                                    Text(displayedText)
-                                        .font(.body)
-                                        .lineSpacing(4)
-                                        .animation(.easeInOut(duration: 0.3), value: displayedText)
-                                    
-                                    // Typing indicator at the end of text while generating
-                                    if isGenerating && !displayedText.isEmpty {
-                                        HStack {
-                                            TypingIndicator()
-                                            Spacer()
+                                    // Fallback to simple text display (for DeepSeek or when structured content is not available)
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text(displayedText)
+                                            .font(.body)
+                                            .lineSpacing(4)
+                                            .animation(.easeInOut(duration: 0.3), value: displayedText)
+                                        
+                                        // Typing indicator at the end of text while generating
+                                        if isGenerating && !displayedText.isEmpty {
+                                            HStack {
+                                                TypingIndicator()
+                                                Spacer()
+                                            }
                                         }
                                     }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(20)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .fill(.ultraThinMaterial)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                    )
                                 }
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(20)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(.ultraThinMaterial)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                            )
                         }
                         
                         // Error display
                         if let error = currentError {
-                            ErrorView(error: error) {
+                            ErrorView(error: SimpleError(message: error)) {
                                 startGeneration()
                             }
                         }
@@ -278,7 +297,10 @@ struct StoryGenerationView: View {
             }
         }
         .onChange(of: generatedTextFromService) { _, newText in
-            updateDisplayedText(newText)
+            // Only update for streaming services (DeepSeek)
+            if request.selectedModel != "illustrations" {
+                updateDisplayedText(newText)
+            }
         }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: [displayedText])
@@ -290,6 +312,7 @@ struct StoryGenerationView: View {
     private func startGeneration() {
         displayedText = ""
         generatedStory = ""
+        structuredStoryResult = nil
         showTypingIndicator = true
         
         // Start the typing indicator animation
@@ -299,18 +322,46 @@ struct StoryGenerationView: View {
         
         // Call the appropriate service based on selected model
         if request.selectedModel == "illustrations" {
-            // Convert request to GeminiStoryRequest format
-            let geminiRequest = GeminiStoryRequest(
-                ageGroup: request.ageGroup,
-                storyLength: request.storyLength,
-                characters: request.characters,
-                setting: request.setting,
-                moralMessage: request.moralMessage,
-                language: request.language == .english ? "english" : "spanish",
-                maxTokens: request.maxTokens
-            )
-            geminiService.generateStoryWithImagesStreaming(geminiRequest)
+            // Use batch generation for Gemini to get properly structured content
+            Task {
+                do {
+                    let geminiRequest = GeminiStoryRequest(
+                        ageGroup: request.ageGroup,
+                        storyLength: request.storyLength,
+                        characters: request.characters,
+                        setting: request.setting,
+                        moralMessage: request.moralMessage,
+                        language: request.language == .english ? "english" : "spanish",
+                        maxTokens: request.maxTokens
+                    )
+                    
+                    let result = try await geminiService.generateStory(request: geminiRequest)
+                    
+                    await MainActor.run {
+                        // Stop typing indicator
+                        animationTimer?.invalidate()
+                        animationTimer = nil
+                        showTypingIndicator = false
+                        
+                        // Set the structured result for proper display
+                        structuredStoryResult = result
+                        displayedText = result.text
+                        generatedStory = result.text
+                    }
+                } catch {
+                    await MainActor.run {
+                        // Stop typing indicator
+                        animationTimer?.invalidate()
+                        animationTimer = nil
+                        showTypingIndicator = false
+                        
+                        print("❌ Gemini generation error: \(error)")
+                        // Error is already handled by the service
+                    }
+                }
+            }
         } else {
+            // Use streaming for DeepSeek
             deepSeekService.generateStoryStreaming(request)
         }
     }
@@ -387,20 +438,40 @@ struct StoryGenerationView: View {
                 let parametersString = String(data: parametersJSON, encoding: .utf8) ?? ""
                 
                 // Save the story to Core Data
-                let savedStory = coreDataManager.createStory(
-                    title: storyTitle,
-                    content: cleanedContent,
-                    ageGroup: request.ageGroup,
-                    language: request.language == .english ? "english" : "spanish",
-                    characters: request.characters.joined(separator: ", "),
-                    setting: request.setting,
-                    moralMessage: request.moralMessage,
-                    storyLength: request.storyLength,
-                    aiModel: request.selectedModel == "illustrations" ? "gemini" : "deepseek",
-                    imageData: nil, // TODO: Handle image data for Gemini stories
-                    generationParameters: parametersString,
-                    userProfile: profile
-                )
+                let savedStory: StoryEntity
+                
+                if request.selectedModel == "illustrations", let structuredResult = structuredStoryResult {
+                    // For Gemini stories with structured content and images
+                    savedStory = coreDataManager.createStoryFromResult(
+                        title: storyTitle,
+                        storyResult: structuredResult,
+                        ageGroup: request.ageGroup,
+                        language: request.language == .english ? "english" : "spanish",
+                        characters: request.characters.joined(separator: ", "),
+                        setting: request.setting,
+                        moralMessage: request.moralMessage,
+                        storyLength: request.storyLength,
+                        aiModel: "gemini",
+                        generationParameters: parametersString,
+                        userProfile: profile
+                    )
+                } else {
+                    // Legacy path for text-only stories or DeepSeek
+                    savedStory = coreDataManager.createStory(
+                        title: storyTitle,
+                        content: cleanedContent,
+                        ageGroup: request.ageGroup,
+                        language: request.language == .english ? "english" : "spanish",
+                        characters: request.characters.joined(separator: ", "),
+                        setting: request.setting,
+                        moralMessage: request.moralMessage,
+                        storyLength: request.storyLength,
+                        aiModel: request.selectedModel == "illustrations" ? "gemini" : "deepseek",
+                        imageData: nil, // No single image for legacy path
+                        generationParameters: parametersString,
+                        userProfile: profile
+                    )
+                }
                 
                 // Create analytics for the story
                 _ = coreDataManager.createStoryAnalytics(
@@ -732,6 +803,16 @@ struct ShareSheet: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - Simple Error Wrapper
+
+struct SimpleError: LocalizedError {
+    let message: String
+    
+    var errorDescription: String? {
+        return message
+    }
 }
 
 #Preview {

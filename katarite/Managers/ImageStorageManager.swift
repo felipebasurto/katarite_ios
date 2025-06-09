@@ -21,7 +21,7 @@ final class ImageStorageManager {
     
     /// Save multiple images for a story
     /// - Parameters:
-    ///   - images: Array of StoryImage objects with base64 data
+    ///   - images: Array of StoryImage objects with data
     ///   - storyId: UUID of the story
     /// - Returns: Array of file paths for saved images
     func saveImages(_ images: [StoryImage], forStory storyId: UUID) async throws -> [String] {
@@ -31,11 +31,8 @@ final class ImageStorageManager {
             let fileName = generateFileName(storyId: storyId, imageIndex: index)
             let filePath = imagesDirectory.appendingPathComponent(fileName)
             
-            // Convert base64 to Data
-            guard let imageData = Data(base64Encoded: storyImage.base64Data) else {
-                print("⚠️ ImageStorageManager: Failed to decode base64 for image \(index)")
-                continue
-            }
+            // Use the data directly from StoryImage
+            let imageData = storyImage.data
             
             // Validate that it's a valid image
             guard UIImage(data: imageData) != nil else {
